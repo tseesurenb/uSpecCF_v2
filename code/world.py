@@ -1,12 +1,10 @@
 '''
 Created on June 7, 2025
 PyTorch Implementation of uSpec: Universal Spectral Collaborative Filtering
-Simplified configuration for enhanced model only
 
 @author: Tseesuren Batsuuri (tseesuren.batsuuri@hdr.mq.edu.au)
 '''
 
-import os
 import torch
 from parse import parse_args
 import multiprocessing
@@ -24,23 +22,17 @@ config['dataset'] = args.dataset
 config['lr'] = args.lr
 config['decay'] = args.decay
 config['epochs'] = args.epochs
-config['filter'] = args.filter
-config['filter_order'] = args.filter_order
+config['in_mat'] = args.in_mat
 config['verbose'] = args.verbose
 config['val_ratio'] = args.val_ratio
 config['patience'] = args.patience
 config['min_delta'] = args.min_delta
 config['n_epoch_eval'] = args.n_epoch_eval
-
-# Enhanced eigenvalue configuration
 config['u_n_eigen'] = args.u_n_eigen  # User eigenvalue count
 config['i_n_eigen'] = args.i_n_eigen  # Item eigenvalue count
-
-# Filter design options
-config['filter_design'] = args.filter_design
+config['filter'] = args.filter
 config['init_filter'] = args.init_filter
-
-# Matrix multiplication similarity configuration
+config['filter_order'] = args.filter_order
 config['similarity_threshold'] = args.similarity_threshold
 
 device = torch.device('cuda' if torch.cuda.is_available() else "cpu")

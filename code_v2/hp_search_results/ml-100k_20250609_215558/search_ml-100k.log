@@ -1,0 +1,4 @@
+2025-06-09 21:55:58,365 - hp_search_ml-100k - INFO - 🚀 Starting experiment: single_test
+2025-06-09 21:55:58,365 - hp_search_ml-100k - INFO - 📋 Configuration: {'epochs': 0, 'lr': 0.1, 'decay': 0.0001, 'verbose': 1, 'seed': 2025}
+2025-06-09 21:55:58,365 - hp_search_ml-100k - INFO - 🔧 Running command: python main.py --epochs 0 --train_u_batch_size 1000 --eval_u_batch_size 500 --filter ui --filter_order 6 --filter_design enhanced_basis --init_filter smooth --similarity_threshold 0.01 --val_ratio 0.1 --n_epoch_eval 5 --min_delta 1e-05 --verbose 1 --lr 0.1 --decay 0.0001 --seed 2025
+2025-06-09 21:55:58,366 - hp_search_ml-100k - INFO - ⏱️  Starting subprocess...

@@ -1,0 +1,101 @@
+
+# 🎯 Hierarchical Hyperparameter Search Plan
+
+This document outlines a structured plan for performing an efficient and scalable **hierarchical hyperparameter search** for a machine learning model, particularly applicable to graph-based or eigen-based models such as those used in recommendation systems.
+
+---
+
+## ✅ Objectives
+
+- Reduce search complexity by **optimizing hyperparameters sequentially**.
+- Begin with the most impactful hyperparameters (e.g., learning rate).
+- Gradually fix optimal values and move deeper into the search space.
+- End with exhaustive testing of all filter configurations using the best-found hyperparameters.
+
+---
+
+## 🔁 Search Procedure
+
+### 1. Learning Rate (`lr`) Search
+Start by tuning the learning rate with the following values:
+
+[1, 0.5, 0.2, 0.1, 0.05, 0.01, 0.001]
+
+- Evaluate each `lr` option and identify the one that provides the best validation performance.
+- **Fix the best learning rate** for all subsequent stages.
+
+---
+
+### 2. Decay and Regularization Parameters
+Next, tune decay-related hyperparameters:
+- `weight_decay`
+- `lr_decay` or similar
+
+- Select from predefined values (to be defined based on the specific model).
+- Fix the best value before continuing.
+
+---
+
+### 3. Remaining Hyperparameters
+Iteratively tune the remaining hyperparameters:
+- One at a time, keeping previously tuned values fixed.
+- Prioritize parameters that significantly influence training dynamics.
+
+---
+
+### 4. Eigenvector-Based Hyperparameters
+
+Use a fixed-step interval of **5 units** for:
+- `u_n_eigen` (user eigen components)
+- `i_n_eigen` (item eigen components)
+
+Example for the **ml-100k** dataset:
+
+u_n_eigen: [15, 20, 25, 30, 35, 40, 45]
+i_n_eigen: [25, 30, 35, 40, 45, 50, 55, 60]
+
+
+You may adjust this range for other datasets, keeping the 5-step logic consistent.
+
+---
+
+### 5. Final Filter Testing
+
+Once all hyperparameters are tuned:
+- Evaluate **all filter types** (e.g., spectral, GCN, NGCF) and **all configuration options** using the **best hyperparameter set** found.
+- This ensures a fair and complete comparison across filter variants.
+
+---
+
+## 🧪 Output Specification
+
+Generate a Python script named `hp_search.py` that:
+- Implements the full hierarchical search logic.
+- Is clean, modular, and well-documented.
+- Uses logging for progress tracking and reproducibility.
+- Optionally supports:
+  - Config file or CLI interface
+  - Early stopping or best-trial tracking
+  - Integration with frameworks like **Optuna**, **Ray Tune**, or manual grid/random search
+
+---
+
+## 📌 Notes
+
+- This approach ensures a **manageable search space** by avoiding full Cartesian product search.
+- Helps pinpoint the effect of each hyperparameter.
+- Ideal for scenarios with constrained compute budgets or large search dimensions.
+
+---
+
+## 🚀 Ready to Implement?
+
+Please confirm:
+- 🗂 Dataset: e.g., `ml-100k`?
+- ⚙️ Preferred search framework: `manual`, `Optuna`, `Ray Tune`?
+- 🧠 Model entry point and training/evaluation function?
+- 💡 Whether early stopping, parallelism, or GPU usage should be enabled?
+
+Once confirmed, we can proceed with generating a production-ready `hp_search.py` script.
+
+

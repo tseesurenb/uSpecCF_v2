@@ -1,0 +1,49 @@
+{
+  "dataset": "ml-100k",
+  "search_type": "multi_view_hierarchical",
+  "timestamp": "2025-06-10T11:45:43.012236",
+  "total_time_minutes": 4.20836783250173,
+  "stage_times": {
+    "stage0_view_configs": 0.5749459505081177,
+    "stage1_threshold_eigen_grid": 3.4722076296806335,
+    "stage2_lr": 0.050013399124145506,
+    "stage3_decay": 0.07582849661509196,
+    "final_run": 0.03537230094273885
+  },
+  "optimal_config": {
+    "name": "hybrid_basic",
+    "use_adjacency_views": true,
+    "use_similarity_views": true,
+    "gamma_values": [
+      0.5
+    ],
+    "filter": "enhanced_basis",
+    "similarity_threshold": 0.0,
+    "epochs": 50,
+    "lr": 0.2,
+    "decay": 0.0001,
+    "u_n_eigen": 20,
+    "i_n_eigen": 50,
+    "verbose": 1,
+    "seed": 2025,
+    "model": "multiview_uspec"
+  },
+  "final_ndcg": 0.36957087272798944,
+  "best_components": {
+    "view_configuration": "hybrid_basic",
+    "use_adjacency_views": true,
+    "use_similarity_views": true,
+    "gamma_values": [
+      0.5
+    ],
+    "similarity_threshold": 0.0,
+    "filter_design": "enhanced_basis",
+    "u_n_eigen": 20,
+    "i_n_eigen": 50,
+    "learning_rate": 0.2,
+    "weight_decay": 0.0001,
+    "total_views": 4,
+    "adjacency_views": 2,
+    "similarity_views": 2
+  }
+}

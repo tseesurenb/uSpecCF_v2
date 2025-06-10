@@ -1,12 +1,16 @@
 '''
-Enhanced Universal Spectral CF Model with Progress Indicators
+Created on June 7, 2025
+PyTorch Implementation of uSpec: Universal Spectral Collaborative Filtering - SVD Optimized
+
+@author: Tseesuren Batsuuri (tseesuren.batsuuri@hdr.mq.edu.au)
 '''
 
 import torch
 import torch.nn as nn
 import numpy as np
 import scipy.sparse as sp
-from scipy.sparse.linalg import eigsh
+from sklearn.decomposition import TruncatedSVD
+from scipy.linalg import svd as scipy_svd
 import time
 import gc
 import os
@@ -16,20 +20,19 @@ from tqdm import tqdm
 
 
 class UniversalSpectralCF(nn.Module):
-    """Enhanced Universal Spectral CF with Progress Tracking"""
+    """Universal Spectral CF with SVD Optimization"""
     
     def __init__(self, adj_mat, config=None):
         super().__init__()
         
-        print("🚀 Initializing Enhanced Universal Spectral CF...")
+        print("🚀 Initializing Universal Spectral CF with SVD optimization...")
         
         self.config = config or {}
         self.device = self.config.get('device', 'cpu')
         self.filter_order = self.config.get('filter_order', 6)
-        self.filter = self.config.get('filter', 'ui')
+        self.in_mat = self.config.get('in_mat', 'ui')
         
         print("📊 Processing adjacency matrix...")
-        # Convert adjacency matrix
         if sp.issparse(adj_mat):
             adj_dense = adj_mat.toarray()
         else:
@@ -41,32 +44,19 @@ class UniversalSpectralCF(nn.Module):
         # Calculate basic statistics
         total_interactions = int(torch.sum(self.adj_tensor).item())
         sparsity = total_interactions / (self.n_users * self.n_items)
-        
-        print(f"📈 Dataset Statistics:")
-        print(f"   ├─ Users: {self.n_users:,}")
-        print(f"   ├─ Items: {self.n_items:,}")
-        print(f"   ├─ Interactions: {total_interactions:,}")
-        print(f"   └─ Sparsity: {sparsity:.4f}")
-        
-        # Eigenvalue configuration
-        self.u_n_eigen, self.i_n_eigen = self._get_eigenvalue_counts(total_interactions, sparsity)
-        self.similarity_threshold = self.config.get('similarity_threshold', 0.01)
-        self.filter_design = self.config.get('filter_design', 'enhanced_basis')
+                
+        # SVD configuration (using eigenvalue terminology for consistency)
+        self.u_n_components, self.i_n_components = self._get_svd_component_counts(total_interactions, sparsity)
+        self.similarity_threshold = self.config.get('similarity_threshold', 0.0)
+        self.filter = self.config.get('filter', 'enhanced_basis')
         self.init_filter = self.config.get('init_filter', 'smooth')
-        
-        print(f"⚙️  Model Configuration:")
-        print(f"   ├─ User eigenvalues: {self.u_n_eigen}")
-        print(f"   ├─ Item eigenvalues: {self.i_n_eigen}")
-        print(f"   ├─ Filter design: {self.filter_design}")
-        print(f"   ├─ Similarity threshold: {self.similarity_threshold}")
-        print(f"   └─ Device: {self.device}")
         
         # Clean up
         del adj_dense
         gc.collect()
         
         # Setup components with progress
-        print("\n🔧 Setting up spectral filters...")
+        print("\n🔧 Setting up spectral filters with SVD...")
         self._setup_filters()
         
         print("🎯 Initializing combination weights...")
@@ -74,16 +64,16 @@ class UniversalSpectralCF(nn.Module):
         
         print("✅ Model initialization complete!\n")
     
-    def _get_eigenvalue_counts(self, total_interactions, sparsity):
-        """Calculate eigenvalue counts with progress info"""
+    def _get_svd_component_counts(self, total_interactions, sparsity):
+        """Calculate SVD component counts (equivalent to eigenvalue counts)"""
         manual_u = self.config.get('u_n_eigen', 0)
         manual_i = self.config.get('i_n_eigen', 0)
         
         if manual_u > 0 and manual_i > 0:
-            print(f"🎯 Using manual eigenvalue counts: u={manual_u}, i={manual_i}")
+            print(f"🎯 Using manual SVD component counts: u={manual_u}, i={manual_i}")
             return manual_u, manual_i
         
-        print("🤖 Computing adaptive eigenvalue counts...")
+        print("🤖 Computing adaptive SVD component counts...")
         
         # Simplified adaptive calculation
         base_u = min(max(16, self.n_users // 20), 128)
@@ -92,21 +82,21 @@ class UniversalSpectralCF(nn.Module):
         # Sparsity adjustment
         if sparsity < 0.01:
             multiplier = 1.2
-            print(f"   └─ Sparse dataset detected, increasing eigenvalues by 20%")
+            print(f"   └─ Sparse dataset detected, increasing components by 20%")
         elif sparsity > 0.05:
             multiplier = 0.8
-            print(f"   └─ Dense dataset detected, reducing eigenvalues by 20%")
+            print(f"   └─ Dense dataset detected, reducing components by 20%")
         else:
             multiplier = 1.0
-            print(f"   └─ Normal sparsity, using standard eigenvalue counts")
+            print(f"   └─ Normal sparsity, using standard component counts")
             
-        u_eigen = int(base_u * multiplier)
-        i_eigen = int(base_i * multiplier)
+        u_components = int(base_u * multiplier)
+        i_components = int(base_i * multiplier)
         
-        print(f"   ├─ User eigenvalues: {base_u} → {u_eigen}")
-        print(f"   └─ Item eigenvalues: {base_i} → {i_eigen}")
+        print(f"   ├─ User SVD components: {base_u} → {u_components}")
+        print(f"   └─ Item SVD components: {base_i} → {i_components}")
         
-        return u_eigen, i_eigen
+        return u_components, i_components
     
     def _get_cache_path(self, cache_type, filter_type=None):
         """Generate cache path"""
@@ -117,10 +107,10 @@ class UniversalSpectralCF(nn.Module):
         threshold = str(self.similarity_threshold).replace('.', 'p')
         
         if filter_type:
-            k_value = self.u_n_eigen if filter_type == 'user' else self.i_n_eigen
-            filename = f"{dataset}_opt_{filter_type}_{cache_type}_k{k_value}_th{threshold}.pkl"
+            k_value = self.u_n_components if filter_type == 'user' else self.i_n_components
+            filename = f"{dataset}_svd_{filter_type}_{cache_type}_k{k_value}_th{threshold}.pkl"
         else:
-            filename = f"{dataset}_opt_{cache_type}_th{threshold}.pkl"
+            filename = f"{dataset}_svd_{cache_type}_th{threshold}.pkl"
             
         return os.path.join(cache_dir, filename)
     
@@ -205,41 +195,41 @@ class UniversalSpectralCF(nn.Module):
         self.user_filter = None
         self.item_filter = None
         
-        if self.filter in ['u', 'ui']:
+        if self.in_mat in ['u', 'ui']:
             print(f"👤 Setting up user similarity filter...")
             self.user_filter = self._create_filter('user')
             print(f"✅ User filter setup complete")
         
-        if self.filter in ['i', 'ui']:
+        if self.in_mat in ['i', 'ui']:
             print(f"🎬 Setting up item similarity filter...")
             self.item_filter = self._create_filter('item')
             print(f"✅ Item filter setup complete")
     
     def _create_filter(self, filter_type):
-        """Create filter with detailed progress"""
-        n_eigen = self.u_n_eigen if filter_type == 'user' else self.i_n_eigen
-        n_components = self.n_users if filter_type == 'user' else self.n_items
+        """Create filter with detailed progress using SVD"""
+        n_components = self.u_n_components if filter_type == 'user' else self.i_n_components
+        n_matrix_size = self.n_users if filter_type == 'user' else self.n_items
         
         print(f"  📋 {filter_type.capitalize()} filter configuration:")
-        print(f"     ├─ Components: {n_components:,}")
-        print(f"     └─ Eigenvalues: {n_eigen}")
+        print(f"     ├─ Matrix size: {n_matrix_size:,}")
+        print(f"     └─ SVD components: {n_components}")
         
         # Try cache first
-        cache_path = self._get_cache_path('eigen', filter_type)
+        cache_path = self._get_cache_path('svd', filter_type)
         if os.path.exists(cache_path):
             try:
-                print(f"  📂 Loading eigendecomposition from cache...")
+                print(f"  📂 Loading SVD decomposition from cache...")
                 with open(cache_path, 'rb') as f:
-                    eigenvals, eigenvecs = pickle.load(f)
-                self.register_buffer(f'{filter_type}_eigenvals', eigenvals.to(self.device))
-                self.register_buffer(f'{filter_type}_eigenvecs', eigenvecs.to(self.device))
-                print(f"  ✅ Eigendecomposition loaded from cache")
+                    singular_vals, svd_vectors = pickle.load(f)
+                self.register_buffer(f'{filter_type}_singular_vals', singular_vals.to(self.device))
+                self.register_buffer(f'{filter_type}_svd_vectors', svd_vectors.to(self.device))
+                print(f"  ✅ SVD decomposition loaded from cache")
                 return self._create_filter_instance()
             except Exception as e:
                 print(f"  ⚠️  Cache loading failed: {e}")
         
-        # Compute eigendecomposition
-        print(f"  🔄 Computing eigendecomposition...")
+        # Compute SVD decomposition
+        print(f"  🔄 Computing SVD decomposition...")
         start_time = time.time()
         
         with torch.no_grad():
@@ -250,47 +240,67 @@ class UniversalSpectralCF(nn.Module):
             
             laplacian = self._compute_similarity_laplacian(similarity)
         
-        # Eigendecomposition with progress
-        print(f"  ⚡ Running eigenvalue decomposition...")
-        eigen_start = time.time()
+        # SVD decomposition with progress
+        print(f"  ⚡ Running SVD decomposition (much faster than eigendecomposition)...")
+        svd_start = time.time()
         
         laplacian_np = laplacian.cpu().numpy()
-        k = min(n_eigen, n_components - 2)
+        k = min(n_components, n_matrix_size - 2)
         
         try:
-            print(f"  🎯 Computing {k} smallest eigenvalues...")
-            eigenvals, eigenvecs = eigsh(sp.csr_matrix(laplacian_np), k=k, which='SM')
-            eigenvals = np.maximum(eigenvals, 0.0)
+            print(f"  🎯 Computing {k} components with SVD...")
             
-            eigen_time = time.time() - eigen_start
-            print(f"  ⏱️  Eigendecomposition completed in {eigen_time:.2f}s")
-            print(f"  📊 Eigenvalue range: [{eigenvals.min():.4f}, {eigenvals.max():.4f}]")
+            # Ensure matrix is symmetric for spectral properties
+            laplacian_np = (laplacian_np + laplacian_np.T) / 2
             
-            eigenvals_tensor = torch.tensor(eigenvals, dtype=torch.float32)
-            eigenvecs_tensor = torch.tensor(eigenvecs, dtype=torch.float32)
+            # Add small regularization
+            np.fill_diagonal(laplacian_np, laplacian_np.diagonal() + 1e-6)
+            
+            # Use TruncatedSVD for efficiency
+            if k < n_matrix_size - 1:
+                svd_solver = TruncatedSVD(n_components=k, random_state=42)
+                svd_solver.fit(laplacian_np)
+                
+                singular_vals = svd_solver.singular_values_
+                svd_vectors = svd_solver.components_.T
+            else:
+                # For small matrices, use full SVD
+                U, s, Vt = scipy_svd(laplacian_np, full_matrices=False)
+                singular_vals = s[:k]
+                svd_vectors = U[:, :k]
+            
+            # Convert to "eigenvalue-like" values for spectral filtering
+            singular_vals = np.maximum(singular_vals, 0.0)
+            
+            svd_time = time.time() - svd_start
+            print(f"  ⏱️  SVD decomposition completed in {svd_time:.2f}s")
+            print(f"  📊 Singular value range: [{singular_vals.min():.4f}, {singular_vals.max():.4f}]")
+            
+            singular_vals_tensor = torch.tensor(singular_vals, dtype=torch.float32)
+            svd_vectors_tensor = torch.tensor(svd_vectors, dtype=torch.float32)
             
             # Save to cache
             try:
-                print(f"  💾 Saving eigendecomposition to cache...")
+                print(f"  💾 Saving SVD decomposition to cache...")
                 with open(cache_path, 'wb') as f:
-                    pickle.dump((eigenvals_tensor, eigenvecs_tensor), f)
+                    pickle.dump((singular_vals_tensor, svd_vectors_tensor), f)
                 print(f"  ✅ Cache saved successfully")
             except Exception as e:
                 print(f"  ⚠️  Cache saving failed: {e}")
             
-            self.register_buffer(f'{filter_type}_eigenvals', eigenvals_tensor.to(self.device))
-            self.register_buffer(f'{filter_type}_eigenvecs', eigenvecs_tensor.to(self.device))
+            self.register_buffer(f'{filter_type}_singular_vals', singular_vals_tensor.to(self.device))
+            self.register_buffer(f'{filter_type}_svd_vectors', svd_vectors_tensor.to(self.device))
             
         except Exception as e:
-            print(f"  ❌ Eigendecomposition failed: {e}")
+            print(f"  ❌ SVD decomposition failed: {e}")
             print(f"  🔄 Using fallback identity matrices...")
             
-            eigenvals = np.linspace(0, 1, min(n_eigen, n_components))
-            eigenvals_tensor = torch.tensor(eigenvals, dtype=torch.float32)
-            eigenvecs_tensor = torch.eye(n_components, min(n_eigen, n_components))
+            singular_vals = np.linspace(0.01, 1, min(n_components, n_matrix_size))
+            singular_vals_tensor = torch.tensor(singular_vals, dtype=torch.float32)
+            svd_vectors_tensor = torch.eye(n_matrix_size, min(n_components, n_matrix_size))
             
-            self.register_buffer(f'{filter_type}_eigenvals', eigenvals_tensor.to(self.device))
-            self.register_buffer(f'{filter_type}_eigenvecs', eigenvecs_tensor.to(self.device))
+            self.register_buffer(f'{filter_type}_singular_vals', singular_vals_tensor.to(self.device))
+            self.register_buffer(f'{filter_type}_svd_vectors', svd_vectors_tensor.to(self.device))
         
         total_time = time.time() - start_time
         print(f"  ⏱️  Total {filter_type} filter setup: {total_time:.2f}s")
@@ -303,18 +313,18 @@ class UniversalSpectralCF(nn.Module):
     
     def _create_filter_instance(self):
         """Create filter instance"""
-        if self.filter_design == 'enhanced_basis':
+        if self.filter == 'enhanced_basis':
             return fl.EnhancedSpectralBasisFilter(self.filter_order, self.init_filter)
-        elif self.filter_design == 'multiscale':
+        elif self.filter == 'multiscale':
             return fl.MultiScaleSpectralFilter(self.filter_order, self.init_filter)
-        elif self.filter_design == 'ensemble':
+        elif self.filter == 'ensemble':
             return fl.EnsembleSpectralFilter(self.filter_order, self.init_filter)
         else:
             return fl.UniversalSpectralFilter(self.filter_order, self.init_filter)
     
     def _setup_combination_weights(self):
         """Setup combination weights"""
-        if self.filter == 'ui':
+        if self.in_mat == 'ui':
             weights = torch.tensor([0.5, 0.3, 0.2])
             print(f"  🎚️  UI filter weights: {weights.tolist()}")
         else:
@@ -324,18 +334,18 @@ class UniversalSpectralCF(nn.Module):
         self.combination_weights = nn.Parameter(weights.to(self.device))
     
     def _get_filter_matrices(self):
-        """Compute filter matrices"""
+        """Compute filter matrices using SVD data"""
         user_matrix = item_matrix = None
         
         if self.user_filter is not None:
-            response = self.user_filter(self.user_eigenvals)
-            user_matrix = torch.mm(torch.mm(self.user_eigenvecs, torch.diag(response)), 
-                                 self.user_eigenvecs.t())
+            response = self.user_filter(self.user_singular_vals)
+            user_matrix = torch.mm(torch.mm(self.user_svd_vectors, torch.diag(response)), 
+                                 self.user_svd_vectors.t())
         
         if self.item_filter is not None:
-            response = self.item_filter(self.item_eigenvals)
-            item_matrix = torch.mm(torch.mm(self.item_eigenvecs, torch.diag(response)), 
-                                 self.item_eigenvecs.t())
+            response = self.item_filter(self.item_singular_vals)
+            item_matrix = torch.mm(torch.mm(self.item_svd_vectors, torch.diag(response)), 
+                                 self.item_svd_vectors.t())
         
         return user_matrix, item_matrix
     
@@ -349,10 +359,10 @@ class UniversalSpectralCF(nn.Module):
         
         scores = [user_profiles]
         
-        if self.filter in ['i', 'ui'] and item_filter_matrix is not None:
+        if self.in_mat in ['i', 'ui'] and item_filter_matrix is not None:
             scores.append(torch.mm(user_profiles, item_filter_matrix))
         
-        if self.filter in ['u', 'ui'] and user_filter_matrix is not None:
+        if self.in_mat in ['u', 'ui'] and user_filter_matrix is not None:
             scores.append(torch.mm(user_filter_matrix[users], self.adj_tensor))
         
         weights = torch.softmax(self.combination_weights, dim=0)
@@ -400,11 +410,22 @@ class UniversalSpectralCF(nn.Module):
     
     def debug_filter_learning(self):
         """Debug output"""
-        print(f"\n=== FILTER DEBUG ===")
-        print(f"Filter Design: {self.filter_design}")
-        print(f"User Eigenvalues: {self.u_n_eigen}")
-        print(f"Item Eigenvalues: {self.i_n_eigen}")
+        print(f"\n=== SVD FILTER DEBUG ===")
+        print(f"Filter Design: {self.filter}")
+        print(f"User SVD Components: {self.u_n_components}")
+        print(f"Item SVD Components: {self.i_n_components}")
         
         weights = torch.softmax(self.combination_weights, dim=0)
         print(f"Combination Weights: {weights.cpu().numpy()}")
-        print("=== END DEBUG ===\n")
+        print("=== END SVD DEBUG ===\n")
+
+    # For backward compatibility, keep eigenvalue terminology in public interface
+    @property
+    def u_n_eigen(self):
+        """Backward compatibility: SVD components as eigenvalue count"""
+        return self.u_n_components
+    
+    @property
+    def i_n_eigen(self):
+        """Backward compatibility: SVD components as eigenvalue count"""
+        return self.i_n_components

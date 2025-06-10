@@ -1,0 +1,2 @@
+2025-06-09 21:50:27,037 - hp_search_ml-100k - INFO - 🚀 Starting experiment: stage0_initial_original_smooth
+2025-06-09 21:50:27,037 - hp_search_ml-100k - INFO - 📋 Configuration: {'epochs': 0, 'lr': 0.1, 'decay': 0.0001, 'u_n_eigen': 0, 'i_n_eigen': 0, 'filter_order': 6, 'similarity_threshold': 0.01, 'seed': 2025, 'verbose': 0, 'filter_design': 'original', 'init_filter': 'smooth'}

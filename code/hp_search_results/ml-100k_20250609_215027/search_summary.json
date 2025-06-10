@@ -1,0 +1,9 @@
+{
+  "dataset": "ml-100k",
+  "search_framework": "manual",
+  "total_time": 131.36969017982483,
+  "total_experiments": 0,
+  "best_configs": {},
+  "search_history": [],
+  "timestamp": "2025-06-09T21:52:38.407361"
+}
